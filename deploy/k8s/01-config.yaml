@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bibliogest-config
+  namespace: bibliogest
+data:
+  OIDC_ISSUER_URI: https://@@AUTH_HOST@@/realms/bibliogest
+  OIDC_JWK_SET_URI: http://keycloak:8080/realms/bibliogest/protocol/openid-connect/certs
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frontend-config
+  namespace: bibliogest
+data:
+  config.json: |-
+    {
+      "keycloakUrl": "https://@@AUTH_HOST@@",
+      "realm": "bibliogest",
+      "clientId": "bibliogest-react",
+      "acervoUrl": "/acervo/api",
+      "reservasUrl": "/reservas/api"
+    }

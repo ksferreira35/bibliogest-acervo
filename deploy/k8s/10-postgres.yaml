@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-hba
+  namespace: bibliogest
+data:
+  pg_hba.conf: |
+    # O socket local é exclusivo do usuário postgres do container.
+    local all all peer
+    host all postgres 0.0.0.0/0 scram-sha-256
+    host all postgres ::/0 scram-sha-256
+    host bibliogest_acervo bibliogest_acervo 0.0.0.0/0 scram-sha-256
+    host bibliogest_acervo bibliogest_acervo ::/0 scram-sha-256
+    host bibliogest_reservas bibliogest_reservas 0.0.0.0/0 scram-sha-256
+    host bibliogest_reservas bibliogest_reservas ::/0 scram-sha-256
+    host bibliogest_keycloak bibliogest_keycloak 0.0.0.0/0 scram-sha-256
+    host bibliogest_keycloak bibliogest_keycloak ::/0 scram-sha-256
+    host all all 0.0.0.0/0 reject
+    host all all ::/0 reject
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: bibliogest
+spec:
+  selector:
+    app: postgres
+  ports:
+  - name: postgres
+    port: 5432
+    targetPort: 5432
+  type: ClusterIP
+  clusterIP: None
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: bibliogest
+spec:
+  serviceName: postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        fsGroup: 999
+        fsGroupChangePolicy: OnRootMismatch
+      containers:
+      - name: postgres
+        image: postgres:17.12-bookworm
+        args:
+        - -c
+        - hba_file=/etc/postgresql/pg_hba.conf
+        - -c
+        - password_encryption=scram-sha-256
+        env:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-admin
+              key: password
+        - name: POSTGRES_INITDB_ARGS
+          value: --auth-host=scram-sha-256 --auth-local=peer
+        - name: PGDATA
+          value: /var/lib/postgresql/data/pgdata
+        ports:
+        - name: postgres
+          containerPort: 5432
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: '1'
+            memory: 1Gi
+        startupProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          periodSeconds: 10
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - postgres
+          periodSeconds: 20
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        - name: hba
+          mountPath: /etc/postgresql
+          readOnly: true
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+      volumes:
+      - name: hba
+        configMap:
+          name: postgres-hba
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: '@@STORAGE_CLASS@@'
+      resources:
+        requests:
+          storage: '@@POSTGRES_STORAGE@@'

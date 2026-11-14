@@ -1,0 +1,137 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-init
+  namespace: bibliogest
+data:
+  init.sql: |
+    \set ON_ERROR_STOP on
+    \getenv acervo_password ACERVO_PASSWORD
+    \getenv reservas_password RESERVAS_PASSWORD
+    \getenv keycloak_password KEYCLOAK_PASSWORD
+    SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT NOBYPASSRLS', 'bibliogest_acervo') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'bibliogest_acervo') \gexec
+    ALTER ROLE bibliogest_acervo WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT NOBYPASSRLS PASSWORD :'acervo_password';
+    SELECT format('CREATE DATABASE %I OWNER %I', 'bibliogest_acervo', 'bibliogest_acervo') WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'bibliogest_acervo') \gexec
+    SELECT format('REVOKE %I FROM %I', parent.rolname, child.rolname) FROM pg_auth_members membership JOIN pg_roles parent ON parent.oid = membership.roleid JOIN pg_roles child ON child.oid = membership.member WHERE child.rolname = 'bibliogest_acervo' \gexec
+    DO $$ BEGIN
+      IF (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'bibliogest_acervo') <> 'bibliogest_acervo' THEN
+        RAISE EXCEPTION 'Banco bibliogest_acervo existente possui proprietário inesperado';
+      END IF;
+    END $$;
+    REVOKE ALL ON DATABASE bibliogest_acervo FROM PUBLIC;
+    GRANT CONNECT, TEMPORARY ON DATABASE bibliogest_acervo TO bibliogest_acervo;
+    SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT NOBYPASSRLS', 'bibliogest_reservas') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'bibliogest_reservas') \gexec
+    ALTER ROLE bibliogest_reservas WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT NOBYPASSRLS PASSWORD :'reservas_password';
+    SELECT format('CREATE DATABASE %I OWNER %I', 'bibliogest_reservas', 'bibliogest_reservas') WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'bibliogest_reservas') \gexec
+    SELECT format('REVOKE %I FROM %I', parent.rolname, child.rolname) FROM pg_auth_members membership JOIN pg_roles parent ON parent.oid = membership.roleid JOIN pg_roles child ON child.oid = membership.member WHERE child.rolname = 'bibliogest_reservas' \gexec
+    DO $$ BEGIN
+      IF (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'bibliogest_reservas') <> 'bibliogest_reservas' THEN
+        RAISE EXCEPTION 'Banco bibliogest_reservas existente possui proprietário inesperado';
+      END IF;
+    END $$;
+    REVOKE ALL ON DATABASE bibliogest_reservas FROM PUBLIC;
+    GRANT CONNECT, TEMPORARY ON DATABASE bibliogest_reservas TO bibliogest_reservas;
+    SELECT format('CREATE ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT NOBYPASSRLS', 'bibliogest_keycloak') WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'bibliogest_keycloak') \gexec
+    ALTER ROLE bibliogest_keycloak WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOINHERIT NOBYPASSRLS PASSWORD :'keycloak_password';
+    SELECT format('CREATE DATABASE %I OWNER %I', 'bibliogest_keycloak', 'bibliogest_keycloak') WHERE NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'bibliogest_keycloak') \gexec
+    SELECT format('REVOKE %I FROM %I', parent.rolname, child.rolname) FROM pg_auth_members membership JOIN pg_roles parent ON parent.oid = membership.roleid JOIN pg_roles child ON child.oid = membership.member WHERE child.rolname = 'bibliogest_keycloak' \gexec
+    DO $$ BEGIN
+      IF (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname = 'bibliogest_keycloak') <> 'bibliogest_keycloak' THEN
+        RAISE EXCEPTION 'Banco bibliogest_keycloak existente possui proprietário inesperado';
+      END IF;
+    END $$;
+    REVOKE ALL ON DATABASE bibliogest_keycloak FROM PUBLIC;
+    GRANT CONNECT, TEMPORARY ON DATABASE bibliogest_keycloak TO bibliogest_keycloak;
+    REVOKE CONNECT ON DATABASE postgres FROM PUBLIC;
+    REVOKE CONNECT ON DATABASE template1 FROM PUBLIC;
+    \connect bibliogest_acervo
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+    GRANT USAGE, CREATE ON SCHEMA public TO bibliogest_acervo;
+    \connect bibliogest_reservas
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+    GRANT USAGE, CREATE ON SCHEMA public TO bibliogest_reservas;
+    \connect bibliogest_keycloak
+    REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+    GRANT USAGE, CREATE ON SCHEMA public TO bibliogest_keycloak;
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: database-init
+  namespace: bibliogest
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 300
+  template:
+    metadata:
+      labels:
+        app: database-init
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsUser: 999
+        runAsGroup: 999
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: init
+        image: postgres:17.12-bookworm
+        command:
+        - psql
+        - -X
+        - -q
+        - -v
+        - ON_ERROR_STOP=1
+        - -f
+        - /scripts/init.sql
+        env:
+        - name: PGHOST
+          value: postgres
+        - name: PGUSER
+          value: postgres
+        - name: PGDATABASE
+          value: postgres
+        - name: PGCONNECT_TIMEOUT
+          value: '5'
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgres-admin
+              key: password
+        - name: ACERVO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: acervo-db
+              key: password
+        - name: RESERVAS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: reservas-db
+              key: password
+        - name: KEYCLOAK_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: keycloak-db
+              key: password
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 250m
+            memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+      volumes:
+      - name: scripts
+        configMap:
+          name: database-init

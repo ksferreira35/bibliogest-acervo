@@ -1,0 +1,17 @@
+{
+  "APP_HOST": "bibliogest.example.invalid",
+  "AUTH_HOST": "login.example.invalid",
+  "ACERVO_IMAGE": "ghcr.io/ksferreira35/bibliogest-acervo:0.1.0",
+  "RESERVAS_IMAGE": "ghcr.io/ksferreira35/bibliogest-reservas:0.1.0",
+  "FRONTEND_IMAGE": "ghcr.io/ksferreira35/bibliogest-frontend:0.1.0",
+  "STORAGE_CLASS": "local-path",
+  "POSTGRES_STORAGE": "20Gi",
+  "INGRESS_CLASS": "traefik",
+  "INGRESS_NAMESPACE": "kube-system",
+  "INGRESS_LABEL_KEY": "app.kubernetes.io/name",
+  "INGRESS_LABEL_VALUE": "traefik",
+  "PGADMIN_IMAGE": "dpage/pgadmin4:9.19",
+  "PGADMIN_EMAIL": "admin@example.com",
+  "PGADMIN_STORAGE": "1Gi",
+  "INGRESS_CONTROLLER": "traefik"
+}

@@ -1,0 +1,48 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bibliogest
+  namespace: bibliogest
+  annotations: '@@INGRESS_ANNOTATIONS@@'
+spec:
+  ingressClassName: '@@INGRESS_CLASS@@'
+  tls:
+  - hosts:
+    - '@@APP_HOST@@'
+    - '@@AUTH_HOST@@'
+    secretName: bibliogest-tls
+  rules:
+  - host: '@@APP_HOST@@'
+    http:
+      paths:
+      - path: /acervo/api
+        pathType: Prefix
+        backend:
+          service:
+            name: acervo
+            port:
+              number: 8080
+      - path: /reservas/api
+        pathType: Prefix
+        backend:
+          service:
+            name: reservas
+            port:
+              number: 8080
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 8080
+  - host: '@@AUTH_HOST@@'
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: keycloak
+            port:
+              number: 8080

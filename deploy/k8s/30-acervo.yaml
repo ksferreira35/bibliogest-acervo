@@ -1,0 +1,103 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: acervo
+  namespace: bibliogest
+spec:
+  selector:
+    app: acervo
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: acervo
+  namespace: bibliogest
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: acervo
+  template:
+    metadata:
+      labels:
+        app: acervo
+      annotations:
+        bibliogest/config-checksum: '@@CONFIG_CHECKSUM@@'
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        runAsUser: 10001
+        runAsGroup: 10001
+      containers:
+      - name: acervo
+        image: '@@ACERVO_IMAGE@@'
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+        resources:
+          requests:
+            cpu: 100m
+            memory: 384Mi
+          limits:
+            cpu: '1'
+            memory: 768Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        env:
+        - name: DB_URL
+          value: jdbc:postgresql://postgres:5432/bibliogest_acervo
+        - name: DB_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: acervo-db
+              key: username
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: acervo-db
+              key: password
+        envFrom:
+        - configMapRef:
+            name: bibliogest-config
+        startupProbe:
+          httpGet:
+            path: /acervo/actuator/health/liveness
+            port: 8080
+          timeoutSeconds: 3
+          periodSeconds: 10
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /acervo/actuator/health/readiness
+            port: 8080
+          timeoutSeconds: 3
+          periodSeconds: 10
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /acervo/actuator/health/liveness
+            port: 8080
+          timeoutSeconds: 3
+          periodSeconds: 10
+          failureThreshold: 3
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 128Mi

@@ -1,0 +1,46 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "BiblioGest Acervo",
+      "Group": "BiblioGest",
+      "Host": "postgres",
+      "Port": 5432,
+      "Username": "bibliogest_acervo",
+      "MaintenanceDB": "bibliogest_acervo",
+      "DBRestriction": "bibliogest_acervo",
+      "ConnectionParameters": {
+        "sslmode": "prefer",
+        "connect_timeout": 5,
+        "passfile": ".pgpass"
+      }
+    },
+    "2": {
+      "Name": "BiblioGest Reservas",
+      "Group": "BiblioGest",
+      "Host": "postgres",
+      "Port": 5432,
+      "Username": "bibliogest_reservas",
+      "MaintenanceDB": "bibliogest_reservas",
+      "DBRestriction": "bibliogest_reservas",
+      "ConnectionParameters": {
+        "sslmode": "prefer",
+        "connect_timeout": 5,
+        "passfile": ".pgpass"
+      }
+    },
+    "3": {
+      "Name": "BiblioGest Keycloak",
+      "Group": "BiblioGest",
+      "Host": "postgres",
+      "Port": 5432,
+      "Username": "bibliogest_keycloak",
+      "MaintenanceDB": "bibliogest_keycloak",
+      "DBRestriction": "bibliogest_keycloak",
+      "ConnectionParameters": {
+        "sslmode": "prefer",
+        "connect_timeout": 5,
+        "passfile": ".pgpass"
+      }
+    }
+  }
+}

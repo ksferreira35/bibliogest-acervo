@@ -1,0 +1,211 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pgadmin-init
+  namespace: bibliogest
+data:
+  prepare-pgpass.py: |
+    import os
+    from pathlib import Path
+    email = os.environ['PGADMIN_DEFAULT_EMAIL']
+    home = Path('/var/lib/pgadmin/storage') / email.replace('@', '_')
+    home.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(home, 0o700)
+    def escape(value):
+        if '\n' in value or '\r' in value:
+            raise ValueError('Senha de banco deve ocupar uma linha')
+        return value.replace('\\', '\\\\').replace(':', '\\:')
+    lines = []
+    for app in ('acervo', 'reservas', 'keycloak'):
+        username = (Path('/credentials') / app / 'username').read_text()
+        db_password = (Path('/credentials') / app / 'password').read_text()
+        lines.append(':'.join(escape(value) for value in ('postgres', '5432', 'bibliogest_' + app, username, db_password)))
+    # Gravação atômica; o arquivo persistido é privado ao usuário pgadmin.
+    path = home / '.pgpass'
+    fd = os.open(home / '.pgpass.tmp', os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    os.fchmod(fd, 0o600)
+    with os.fdopen(fd, 'w') as stream:
+        stream.write('\n'.join(lines) + '\n')
+    os.replace(home / '.pgpass.tmp', path)
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pgadmin-data
+  namespace: bibliogest
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: '@@STORAGE_CLASS@@'
+  resources:
+    requests:
+      storage: '@@PGADMIN_STORAGE@@'
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pgadmin
+  namespace: bibliogest
+spec:
+  type: ClusterIP
+  selector:
+    app: pgadmin
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pgadmin
+  namespace: bibliogest
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: pgadmin
+  template:
+    metadata:
+      labels:
+        app: pgadmin
+      annotations:
+        bibliogest/config-checksum: '@@CONFIG_CHECKSUM@@'
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 5050
+        runAsGroup: 0
+        fsGroup: 5050
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+      - name: prepare-database-passwords
+        image: '@@PGADMIN_IMAGE@@'
+        command:
+        - /venv/bin/python3
+        - /scripts/prepare-pgpass.py
+        env:
+        - name: PGADMIN_DEFAULT_EMAIL
+          value: '@@PGADMIN_EMAIL@@'
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/pgadmin
+        - name: scripts
+          mountPath: /scripts
+          readOnly: true
+        - name: acervo-credentials
+          mountPath: /credentials/acervo
+          readOnly: true
+        - name: reservas-credentials
+          mountPath: /credentials/reservas
+          readOnly: true
+        - name: keycloak-credentials
+          mountPath: /credentials/keycloak
+          readOnly: true
+      containers:
+      - name: pgadmin
+        image: '@@PGADMIN_IMAGE@@'
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8080
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+        env:
+        - name: PGADMIN_DEFAULT_EMAIL
+          value: '@@PGADMIN_EMAIL@@'
+        - name: PGADMIN_DEFAULT_PASSWORD_FILE
+          value: /login/password
+        - name: PGADMIN_DISABLE_POSTFIX
+          value: 'true'
+        - name: PGADMIN_LISTEN_ADDRESS
+          value: 0.0.0.0
+        - name: PGADMIN_LISTEN_PORT
+          value: '8080'
+        - name: PGADMIN_SERVER_JSON_FILE
+          value: /definitions/servers.json
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        startupProbe:
+          httpGet:
+            path: /misc/ping
+            port: 8080
+          periodSeconds: 5
+          failureThreshold: 60
+        readinessProbe:
+          httpGet:
+            path: /misc/ping
+            port: 8080
+          periodSeconds: 10
+          timeoutSeconds: 3
+        livenessProbe:
+          httpGet:
+            path: /misc/ping
+            port: 8080
+          periodSeconds: 20
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/pgadmin
+        - name: definitions
+          mountPath: /definitions
+          readOnly: true
+        - name: login
+          mountPath: /login
+          readOnly: true
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: pgadmin-data
+      - name: scripts
+        configMap:
+          name: pgadmin-init
+      - name: definitions
+        configMap:
+          name: pgadmin-servers
+      - name: login
+        secret:
+          secretName: pgadmin-admin
+          defaultMode: 288
+          items:
+          - key: password
+            path: password
+      - name: acervo-credentials
+        secret:
+          secretName: acervo-db
+          defaultMode: 288
+      - name: reservas-credentials
+        secret:
+          secretName: reservas-db
+          defaultMode: 288
+      - name: keycloak-credentials
+        secret:
+          secretName: keycloak-db
+          defaultMode: 288
