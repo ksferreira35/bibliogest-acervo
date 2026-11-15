@@ -97,3 +97,7 @@ dumps/
 
 # Backups do editor
 *~
+
+# Scripts e testes de deploy usados no homelab
+/deploy/scripts/
+/deploy/tests/
