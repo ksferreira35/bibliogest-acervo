@@ -22,11 +22,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -114,6 +116,77 @@ class ExemplarApiTests {
                                 {"codigoTombo":"PROTEGIDO-01"}
                                 """))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void obraInexistenteRetorna404AoConsultarDetalhes() throws Exception {
+        UUID obraId = UUID.randomUUID();
+
+        mvc.perform(get("/api/v1/obras/{id}", obraId)
+                        .header("Authorization", "Bearer leitor"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.detail").value("Obra informada não encontrada"))
+                .andExpect(jsonPath("$.instance").value("/api/v1/obras/" + obraId));
+    }
+
+    @Test
+    void obraInexistenteRetorna404AoListarExemplares() throws Exception {
+        mvc.perform(get(EXEMPLARES, UUID.randomUUID())
+                        .header("Authorization", "Bearer leitor"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void obraInexistenteRetorna404AoCadastrarExemplar() throws Exception {
+        mvc.perform(post(EXEMPLARES, UUID.randomUUID())
+                        .header("Authorization", "Bearer bibliotecario")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"codigoTombo":"SEM-OBRA-01"}
+                                """))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void codigoTomboEmBrancoIndicaCampoInvalido() throws Exception {
+        Obra obra = criarObra("Obra para teste de validação");
+
+        mvc.perform(post(EXEMPLARES, obra.getId())
+                        .header("Authorization", "Bearer bibliotecario")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"codigoTombo":" "}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.errors[0].field").value("codigoTombo"))
+                .andExpect(jsonPath("$.errors[0].message").isNotEmpty());
+    }
+
+    @Test
+    void codigoTomboDuplicadoRetorna409MesmoEmOutraObra() throws Exception {
+        Obra primeiraObra = criarObra("Obra com tombo registrado");
+        Obra outraObra = criarObra("Obra que tenta reutilizar o tombo");
+        exemplarRepository.save(new Exemplar(primeiraObra, "DUPLICADO-01"));
+
+        mvc.perform(post(EXEMPLARES, outraObra.getId())
+                        .header("Authorization", "Bearer bibliotecario")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"codigoTombo":"DUPLICADO-01"}
+                                """))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.detail").value(
+                        "Os dados informados conflitam com uma restrição do acervo."));
     }
 
     private Obra criarObra(String titulo) {

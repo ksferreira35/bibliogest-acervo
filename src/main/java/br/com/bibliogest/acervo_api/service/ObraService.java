@@ -10,7 +10,6 @@ import br.com.bibliogest.acervo_api.entities.Obra;
 import br.com.bibliogest.acervo_api.repository.AutorRepository;
 import br.com.bibliogest.acervo_api.repository.CategoriaRepository;
 import br.com.bibliogest.acervo_api.repository.ObraRepository;
-import jakarta.persistence.EntityNotFoundException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -81,7 +80,9 @@ public class ObraService {
     @Transactional(readOnly = true)
     public ObraResponse buscarPorUUID(UUID id) {
         Obra obra = obraRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Obra informada não encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Obra informada não encontrada"
+                ));
 
         return new ObraResponse(obra);
     }
