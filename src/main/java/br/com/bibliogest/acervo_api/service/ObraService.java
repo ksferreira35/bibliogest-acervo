@@ -1,7 +1,5 @@
 package br.com.bibliogest.acervo_api.service;
 
-import br.com.bibliogest.acervo_api.dto.AutorResponse;
-import br.com.bibliogest.acervo_api.dto.CategoriaResponse;
 import br.com.bibliogest.acervo_api.dto.ObraRequest;
 import br.com.bibliogest.acervo_api.dto.ObraResponse;
 import br.com.bibliogest.acervo_api.entities.Autor;
@@ -57,16 +55,7 @@ public class ObraService {
                 request.volume(),
                 request.isbn()
         );
-        Obra salva = obraRepository.save(obra);
-
-        return new ObraResponse(
-                salva.getId(),
-                salva.getTitulo(),
-                new CategoriaResponse(salva.getCategoria()),
-                salva.getAutores().stream().map(AutorResponse::new).toList(),
-                salva.getVolume(),
-                salva.getIsbn()
-        );
+        return new ObraResponse(obraRepository.save(obra));
     }
 
     @Transactional(readOnly = true)

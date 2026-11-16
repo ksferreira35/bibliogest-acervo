@@ -36,6 +36,8 @@ public class SecurityConfiguration {
                 auth
                     .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                     .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/capas/{obraId}.jpg").permitAll()
+                    .requestMatchers(HttpMethod.HEAD, "/capas/{obraId}.jpg").permitAll()
                     .requestMatchers("/api/admin/**").hasRole("BIBLIOTECARIO")
                     .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("LEITOR", "BIBLIOTECARIO")
                     .requestMatchers(HttpMethod.HEAD, "/api/**").hasAnyRole("LEITOR", "BIBLIOTECARIO")

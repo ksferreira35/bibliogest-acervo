@@ -1,0 +1,1 @@
+ALTER TABLE obra ADD COLUMN capa_chave VARCHAR(120);

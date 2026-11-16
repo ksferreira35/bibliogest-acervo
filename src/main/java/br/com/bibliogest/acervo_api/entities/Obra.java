@@ -33,6 +33,9 @@ public class Obra {
     @Column(length = 30)
     private String isbn;
 
+    @Column(name = "capa_chave", length = 120)
+    private String capaChave;
+
     protected Obra() {}
 
     public Obra(String titulo, Categoria categoria, Set<Autor> autores, String volume, String isbn) {
@@ -65,5 +68,13 @@ public class Obra {
 
     public String getIsbn() {
         return isbn;
+    }
+
+    public String getCapaChave() {
+        return capaChave;
+    }
+
+    public void definirCapa(String chave) {
+        this.capaChave = chave;
     }
 }

@@ -11,6 +11,10 @@ spring:
       ddl-auto: validate
   flyway:
     enabled: true
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
   security:
     oauth2:
       resourceserver:
@@ -18,6 +22,9 @@ spring:
           issuer-uri: ${OIDC_ISSUER_URI}
           jwk-set-uri: ${OIDC_JWK_SET_URI}
           audiences: bibliogest-acervo
+bibliogest:
+  capas:
+    diretorio: ${BIBLIOGEST_CAPAS_DIR:./.local/acervo}
 server:
   port: 8080
   servlet:

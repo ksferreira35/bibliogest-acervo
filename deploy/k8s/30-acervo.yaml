@@ -12,6 +12,19 @@ spec:
     targetPort: 8080
   type: ClusterIP
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: acervo-capas
+  namespace: bibliogest
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: '@@STORAGE_CLASS@@'
+  resources:
+    requests:
+      storage: 1Gi
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -37,6 +50,8 @@ spec:
           type: RuntimeDefault
         runAsUser: 10001
         runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
       containers:
       - name: acervo
         image: '@@ACERVO_IMAGE@@'
@@ -58,6 +73,8 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
         env:
+        - name: BIBLIOGEST_CAPAS_DIR
+          value: /data
         - name: DB_URL
           value: jdbc:postgresql://postgres:5432/bibliogest_acervo
         - name: DB_USERNAME
@@ -95,9 +112,14 @@ spec:
           periodSeconds: 10
           failureThreshold: 3
         volumeMounts:
+        - name: capas
+          mountPath: /data
         - name: tmp
           mountPath: /tmp
       volumes:
+      - name: capas
+        persistentVolumeClaim:
+          claimName: acervo-capas
       - name: tmp
         emptyDir:
           sizeLimit: 128Mi
