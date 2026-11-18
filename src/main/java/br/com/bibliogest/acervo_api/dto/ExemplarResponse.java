@@ -1,7 +1,6 @@
 package br.com.bibliogest.acervo_api.dto;
 
 import br.com.bibliogest.acervo_api.entities.Exemplar;
-import br.com.bibliogest.acervo_api.entities.Obra;
 
 import java.util.UUID;
 
