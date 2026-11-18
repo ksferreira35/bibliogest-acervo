@@ -6,11 +6,11 @@
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>4.1.2</version>
-		<relativePath/> <!-- lookup parent from repository -->
+		<relativePath/>
 	</parent>
 	<groupId>br.com.bibliogest</groupId>
 	<artifactId>acervo-api</artifactId>
-	<version>0.1.1</version>
+	<version>0.1.2</version>
 	<name>BiblioGest - API de Acervo</name>
 	<description>Microsserviço de catálogo, categorias e exemplares físicos do BiblioGest.</description>
 	<url>https://github.com/ksferreira35/bibliogest-acervo</url>
