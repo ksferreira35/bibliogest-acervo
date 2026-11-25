@@ -46,6 +46,9 @@ public class Obra {
     @Column(name = "capa_chave", length = 120)
     private String capaChave;
 
+    @Column(columnDefinition = "text")
+    private String descricao;
+
     protected Obra() {}
 
     public Obra(String titulo, Categoria categoria, Set<Autor> autores, String volume, String isbn) {
@@ -87,6 +90,14 @@ public class Obra {
 
     public String getIsbn() {
         return isbn;
+    }
+
+    public String getDescricao() {
+        return descricao;
+    }
+
+    public void definirDescricao(String descricao) {
+        this.descricao = descricao == null || descricao.isBlank() ? null : descricao.strip();
     }
 
     public String getCapaChave() {

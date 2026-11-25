@@ -65,3 +65,5 @@ O Dockerfile gera a imagem da API. Os manifests do homelab ficam em `deploy/k8s/
 O catálogo `GET /obras` retorna `{content, pagina, tamanho, totalElementos, totalPaginas}`. Use `pagina` (inicia em 0), `tamanho` (padrão 20, máximo 100), `busca` (título, autor, categoria ou ISBN) e `categoriaId`. A ordenação é por título e ID.
 
 `PUT /obras/{id}` recebe o mesmo corpo do cadastro e substitui título, categoria, autores, volume e ISBN, preservando ID, capa e exemplares. Volume e ISBN omitidos são limpos. Edição e exclusão exigem `BIBLIOTECARIO`; exclusão com exemplares retorna `409` para preservar as referências usadas pelas reservas.
+
+O cadastro e a edição de obras aceitam `descricao`, um texto opcional de até 5.000 caracteres para a sinopse. O campo é retornado nas consultas; valores vazios são armazenados como `null`. No PUT, omitir a descrição ou enviar `null` remove a sinopse anterior.

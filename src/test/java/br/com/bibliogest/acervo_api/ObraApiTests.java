@@ -34,6 +34,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -247,6 +248,90 @@ class ObraApiTests {
                 .collect(java.util.stream.Collectors.joining(","));
         mvc.perform(get("/api/v1/obras/resumo").param("ids", ids).header("Authorization", "Bearer LEITOR"))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void bibliotecarioCadastraSinopseComParagrafosELeitorPodeConsultar() throws Exception {
+        String descricao = "Primeiro parágrafo.\n\nSegundo parágrafo.";
+        mvc.perform(post("/api/v1/obras").header("Authorization", "Bearer BIBLIOTECARIO")
+                        .contentType(MediaType.APPLICATION_JSON).content(payloadDescricao("  " + descricao + "  ")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.descricao").value(descricao));
+        UUID id = obras.findAll().getFirst().getId();
+        mvc.perform(get("/api/v1/obras/{id}", id).header("Authorization", "Bearer LEITOR"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.descricao").value(descricao));
+        mvc.perform(get("/api/v1/obras").header("Authorization", "Bearer LEITOR"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].descricao").value(descricao));
+    }
+
+    @Test
+    void editarDescricaoPreservaIdCapaEExemplares() throws Exception {
+        Obra obra = criar("Obra com sinopse");
+        obra.definirDescricao("Anterior");
+        obra.definirCapa("capas/teste.jpg");
+        Exemplar exemplar = exemplares.save(new Exemplar(obra, "SINOPSE-001"));
+        mvc.perform(put("/api/v1/obras/{id}", obra.getId()).header("Authorization", "Bearer BIBLIOTECARIO")
+                        .contentType(MediaType.APPLICATION_JSON).content(payloadDescricao("Nova sinopse")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.descricao").value("Nova sinopse"))
+                .andExpect(jsonPath("$.id").value(obra.getId().toString()))
+                .andExpect(jsonPath("$.capaUrl").value("/acervo/capas/" + obra.getId() + ".jpg"));
+        assertThat(exemplares.findByObraId(obra.getId())).extracting(Exemplar::getId).containsExactly(exemplar.getId());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"", "  ", "\n\n"})
+    void descricaoVaziaRemoveSinopseAnterior(String descricao) throws Exception {
+        Obra obra = criar("Com descrição");
+        obra.definirDescricao("Anterior");
+        mvc.perform(put("/api/v1/obras/{id}", obra.getId()).header("Authorization", "Bearer BIBLIOTECARIO")
+                        .contentType(MediaType.APPLICATION_JSON).content(payloadDescricao(descricao)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.descricao").value(nullValue()));
+    }
+
+    @Test
+    void cadastroAntigoSemDescricaoContinuaValido() throws Exception {
+        mvc.perform(post("/api/v1/obras").header("Authorization", "Bearer BIBLIOTECARIO")
+                        .contentType(MediaType.APPLICATION_JSON).content(payload("Sem sinopse", categoria.getId(), autor.getId())))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.descricao").value(nullValue()));
+    }
+
+    @Test
+    void rejeitaDescricaoAcimaDoLimiteNoCadastroENaEdicao() throws Exception {
+        Obra obra = criar("Original");
+        String body = payloadDescricao("a".repeat(5001));
+        mvc.perform(post("/api/v1/obras").header("Authorization", "Bearer BIBLIOTECARIO")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors[0].field").value("descricao"));
+        mvc.perform(put("/api/v1/obras/{id}", obra.getId()).header("Authorization", "Bearer BIBLIOTECARIO")
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.errors[0].field").value("descricao"));
+        assertThat(obra.getDescricao()).isNull();
+    }
+
+    @Test
+    void aceitaDescricaoComExatamente5000Caracteres() throws Exception {
+        mvc.perform(post("/api/v1/obras").header("Authorization", "Bearer BIBLIOTECARIO")
+                        .contentType(MediaType.APPLICATION_JSON).content(payloadDescricao("á".repeat(5000))))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.descricao").value("á".repeat(5000)));
+    }
+
+    @Test
+    void leitorNaoCadastraNemAlteraDescricao() throws Exception {
+        Obra obra = criar("Protegida");
+        obra.definirDescricao("Original");
+        mvc.perform(post("/api/v1/obras").header("Authorization", "Bearer LEITOR")
+                        .contentType(MediaType.APPLICATION_JSON).content(payloadDescricao("Tentativa")))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/obras/{id}", obra.getId()).header("Authorization", "Bearer LEITOR")
+                        .contentType(MediaType.APPLICATION_JSON).content(payloadDescricao("Tentativa")))
+                .andExpect(status().isForbidden());
+        assertThat(obra.getDescricao()).isEqualTo("Original");
+    }
+
+    private String payloadDescricao(String descricao) {
+        String base = payload("Obra de teste", categoria.getId(), autor.getId()).strip();
+        String texto = descricao.replace("\\", "\\\\").replace("\"", "\\\"")
+                .replace("\n", "\\n").replace("\r", "\\r");
+        return base.substring(0, base.length() - 1) + ",\"descricao\":\"" + texto + "\"}";
     }
 
     private Obra criar(String titulo) {

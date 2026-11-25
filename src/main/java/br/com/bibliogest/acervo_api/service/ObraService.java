@@ -59,6 +59,7 @@ public class ObraService {
                 request.volume(),
                 request.isbn()
         );
+        obra.definirDescricao(request.descricao());
         return new ObraResponse(obraRepository.save(obra));
     }
 
@@ -81,6 +82,7 @@ public class ObraService {
         Categoria categoria = categoria(request);
         Set<Autor> autores = autores(request);
         obra.atualizar(request.titulo(), categoria, autores, request.volume(), request.isbn());
+        obra.definirDescricao(request.descricao());
         return new ObraResponse(obra);
     }
 

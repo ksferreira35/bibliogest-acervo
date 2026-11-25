@@ -13,5 +13,6 @@ public record ObraRequest(
         @NotNull UUID categoriaId,
         @NotEmpty Set<@NotNull UUID> autorIds,
         @Size(max = 50) String volume,
-        @Size(max = 30) String isbn
+        @Size(max = 30) String isbn,
+        @Size(max = 5000) String descricao
 ) {}
