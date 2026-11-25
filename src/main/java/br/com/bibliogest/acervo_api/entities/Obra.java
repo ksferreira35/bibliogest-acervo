@@ -9,6 +9,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -27,6 +28,7 @@ public class Obra {
     @JoinColumn(name = "categoria_id")
     private Categoria categoria;
 
+    @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
             name = "obra_autor",
@@ -49,7 +51,16 @@ public class Obra {
     public Obra(String titulo, Categoria categoria, Set<Autor> autores, String volume, String isbn) {
         this.titulo = titulo;
         this.categoria = categoria;
-        this.autores = autores;
+        this.autores = new HashSet<>(autores);
+        this.volume = volume;
+        this.isbn = isbn;
+    }
+
+    public void atualizar(String titulo, Categoria categoria, Set<Autor> autores, String volume, String isbn) {
+        this.titulo = titulo;
+        this.categoria = categoria;
+        this.autores.clear();
+        this.autores.addAll(autores);
         this.volume = volume;
         this.isbn = isbn;
     }

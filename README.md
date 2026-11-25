@@ -41,7 +41,8 @@ As rotas abaixo usam o prefixo `/acervo/api/v1`.
 | GET / POST | `/categorias` | Listar e cadastrar categorias |
 | GET / POST | `/autores` | Listar e cadastrar autores |
 | GET / POST | `/obras` | Listar e cadastrar obras |
-| GET | `/obras/{id}` | Consultar uma obra |
+| GET / PUT / DELETE | `/obras/{id}` | Consultar, editar ou excluir uma obra sem exemplares |
+| GET | `/obras/resumo?ids={id1},{id2}` | Consultar até 100 obras por ID em uma chamada |
 | GET / POST | `/obras/{obraId}/exemplares` | Listar e cadastrar cópias físicas da obra |
 | PUT | `/obras/{obraId}/capa` | Enviar ou substituir a capa |
 
@@ -60,3 +61,7 @@ mvn verify
 Os testes usam H2 em memória e tokens simulados. O GitHub Actions executa os testes antes do build.
 
 O Dockerfile gera a imagem da API. Os manifests do homelab ficam em `deploy/k8s/`. A API de Reservas consulta os exemplares por HTTP e mantém a disponibilidade e as reservas no próprio banco.
+
+O catálogo `GET /obras` retorna `{content, pagina, tamanho, totalElementos, totalPaginas}`. Use `pagina` (inicia em 0), `tamanho` (padrão 20, máximo 100), `busca` (título, autor, categoria ou ISBN) e `categoriaId`. A ordenação é por título e ID.
+
+`PUT /obras/{id}` recebe o mesmo corpo do cadastro e substitui título, categoria, autores, volume e ISBN, preservando ID, capa e exemplares. Volume e ISBN omitidos são limpos. Edição e exclusão exigem `BIBLIOTECARIO`; exclusão com exemplares retorna `409` para preservar as referências usadas pelas reservas.
