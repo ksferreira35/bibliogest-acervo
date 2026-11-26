@@ -12,7 +12,8 @@ public record ObraResponse(
         List<AutorResponse> autor,
         String volume,
         String isbn,
-        String capaUrl
+        String capaUrl,
+        String descricao
 ) {
     public ObraResponse(Obra obra) {
         this(
@@ -22,7 +23,8 @@ public record ObraResponse(
                 obra.getAutores().stream().map(AutorResponse::new).toList(),
                 obra.getVolume(),
                 obra.getIsbn(),
-                obra.getCapaChave() == null ? null : "/acervo/capas/" + obra.getId() + ".jpg"
+                obra.getCapaChave() == null ? null : "/acervo/capas/" + obra.getId() + ".jpg",
+                obra.getDescricao()
         );
     }
 }

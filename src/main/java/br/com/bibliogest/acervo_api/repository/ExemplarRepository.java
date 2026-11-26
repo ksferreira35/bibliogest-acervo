@@ -7,5 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ExemplarRepository extends JpaRepository<Exemplar, UUID> {
+    boolean existsByObraId(UUID obraId);
+
     List<Exemplar> findByObraId(UUID obraId);
 }

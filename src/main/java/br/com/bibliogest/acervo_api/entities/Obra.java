@@ -1,6 +1,15 @@
 package br.com.bibliogest.acervo_api.entities;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
+import org.hibernate.annotations.BatchSize;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -19,6 +28,7 @@ public class Obra {
     @JoinColumn(name = "categoria_id")
     private Categoria categoria;
 
+    @BatchSize(size = 100)
     @ManyToMany
     @JoinTable(
             name = "obra_autor",
@@ -36,12 +46,24 @@ public class Obra {
     @Column(name = "capa_chave", length = 120)
     private String capaChave;
 
+    @Column(columnDefinition = "text")
+    private String descricao;
+
     protected Obra() {}
 
     public Obra(String titulo, Categoria categoria, Set<Autor> autores, String volume, String isbn) {
         this.titulo = titulo;
         this.categoria = categoria;
-        this.autores = autores;
+        this.autores = new HashSet<>(autores);
+        this.volume = volume;
+        this.isbn = isbn;
+    }
+
+    public void atualizar(String titulo, Categoria categoria, Set<Autor> autores, String volume, String isbn) {
+        this.titulo = titulo;
+        this.categoria = categoria;
+        this.autores.clear();
+        this.autores.addAll(autores);
         this.volume = volume;
         this.isbn = isbn;
     }
@@ -68,6 +90,14 @@ public class Obra {
 
     public String getIsbn() {
         return isbn;
+    }
+
+    public String getDescricao() {
+        return descricao;
+    }
+
+    public void definirDescricao(String descricao) {
+        this.descricao = descricao == null || descricao.isBlank() ? null : descricao.strip();
     }
 
     public String getCapaChave() {

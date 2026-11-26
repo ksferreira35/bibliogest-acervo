@@ -2,9 +2,7 @@ package br.com.bibliogest.acervo_api.service;
 
 import br.com.bibliogest.acervo_api.dto.AutorRequest;
 import br.com.bibliogest.acervo_api.dto.AutorResponse;
-import br.com.bibliogest.acervo_api.dto.CategoriaResponse;
 import br.com.bibliogest.acervo_api.entities.Autor;
-import br.com.bibliogest.acervo_api.entities.Categoria;
 import br.com.bibliogest.acervo_api.repository.AutorRepository;
 import org.springframework.stereotype.Service;
 

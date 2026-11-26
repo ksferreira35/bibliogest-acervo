@@ -15,6 +15,7 @@ data:
     host bibliogest_reservas bibliogest_reservas ::/0 scram-sha-256
     host bibliogest_keycloak bibliogest_keycloak 0.0.0.0/0 scram-sha-256
     host bibliogest_keycloak bibliogest_keycloak ::/0 scram-sha-256
+    host bibliogest_usuarios bibliogest_usuarios 10.42.0.0/16 scram-sha-256
     host all all 0.0.0.0/0 reject
     host all all ::/0 reject
 ---

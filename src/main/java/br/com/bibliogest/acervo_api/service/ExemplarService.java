@@ -7,7 +7,6 @@ import br.com.bibliogest.acervo_api.entities.Obra;
 import br.com.bibliogest.acervo_api.repository.ExemplarRepository;
 import br.com.bibliogest.acervo_api.repository.ObraRepository;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;

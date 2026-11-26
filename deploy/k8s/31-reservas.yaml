@@ -58,6 +58,8 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
         env:
+        - name: ACERVO_BASE_URL
+          value: http://acervo:8080/acervo
         - name: DB_URL
           value: jdbc:postgresql://postgres:5432/bibliogest_reservas
         - name: DB_USERNAME

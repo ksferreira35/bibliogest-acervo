@@ -38,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -161,6 +162,38 @@ class CapaApiTests {
                 .andExpect(jsonPath("$.capaUrl").value(nullValue()));
 
         mvc.perform(get(url(id)).contextPath(CONTEXTO)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void excluirObraSemExemplaresRemoveCapaSomenteDepoisDoCommit() throws Exception {
+        UUID id = criarObra();
+        enviar(id, imagem(24, "png"), "bibliotecario").andExpect(status().isOk());
+        Path arquivo = arquivoAtual(id);
+        mvc.perform(delete(OBRAS + "/" + id).contextPath(CONTEXTO)
+                        .header("Authorization", "Bearer bibliotecario"))
+                .andExpect(status().isNoContent());
+        assertThat(arquivo).doesNotExist();
+        mvc.perform(get(url(id)).contextPath(CONTEXTO)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void rollbackDaExclusaoPreservaCadastroECapa() throws Exception {
+        UUID id = criarObra();
+        enviar(id, imagem(24, "png"), "bibliotecario").andExpect(status().isOk());
+        Path arquivo = arquivoAtual(id);
+        transacao.executeWithoutResult(status -> {
+            try {
+                mvc.perform(delete(OBRAS + "/" + id).contextPath(CONTEXTO)
+                                .header("Authorization", "Bearer bibliotecario"))
+                        .andExpect(status().isNoContent());
+            } catch (Exception erro) {
+                throw new IllegalStateException(erro);
+            }
+            status.setRollbackOnly();
+        });
+        assertThat(obras.existsById(id)).isTrue();
+        assertThat(arquivo).exists();
+        assertThat(lerCapa(id).getWidth()).isEqualTo(24);
     }
 
     private UUID criarObra() {
